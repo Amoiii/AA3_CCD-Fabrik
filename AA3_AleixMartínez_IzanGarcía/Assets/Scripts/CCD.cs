@@ -9,12 +9,17 @@ public class CCD : MonoBehaviour
     public Transform target;
 
     [Header("Parámetros (Teoría)")]
-    public float tolerance = 0.1f;
+    public float tolerance = 0.01f; // Tolerancia baja para precisión
     public int maxIterations = 10;
+
+    [Header("Movimiento Natural")]
+    [Range(0.01f, 5f)]
+    public float smoothness = 0.5f; // NUEVO: Velocidad de giro (Bajo = Lento/Natural, Alto = Rápido)
+    // Recomendado: entre 0.1 y 1.0 para que se vea el movimiento.
 
     [Header("Restricciones (Constraints)")]
     [Range(0, 180)]
-    public float angleLimit = 90f; // NUEVO: Límite de giro (ej. un codo no gira 360º)
+    public float angleLimit = 90f;
 
     [Header("Debug")]
     public int iterationsUsed;
@@ -27,6 +32,9 @@ public class CCD : MonoBehaviour
         currentDistance = Vector3.Distance(endEffector.position, target.position);
         iterationsUsed = 0;
 
+        // Aunque estemos cerca, si queremos movimiento suave continuo, 
+        // a veces conviene seguir ejecutando con límite de velocidad,
+        // pero por rendimiento mantenemos el freno de tolerancia.
         if (currentDistance <= tolerance) return;
 
         SolveCCD();
@@ -38,49 +46,51 @@ public class CCD : MonoBehaviour
         {
             iterationsUsed++;
 
-            // Recorremos desde el último hueso hasta la base
             for (int j = bones.Count - 1; j >= 0; j--)
             {
                 Transform currentBone = bones[j];
 
-                // Vectores hacia el efector y hacia el objetivo
                 Vector3 toEnd = (endEffector.position - currentBone.position).normalized;
                 Vector3 toTarget = (target.position - currentBone.position).normalized;
 
                 if (toEnd == Vector3.zero || toTarget == Vector3.zero) continue;
 
-                // 1. Calcular rotación necesaria
+                // 1. Eje de rotación
                 Vector3 rotationAxis = Vector3.Cross(toEnd, toTarget).normalized;
                 if (rotationAxis.sqrMagnitude < 0.001f) continue;
 
+                // 2. Ángulo necesario
                 float dotProduct = Mathf.Clamp(Vector3.Dot(toEnd, toTarget), -1f, 1f);
                 float angleDegrees = Mathf.Acos(dotProduct) * Mathf.Rad2Deg;
 
-                // Suavizado (Damping)
-                angleDegrees = Mathf.Clamp(angleDegrees, -80f, 80f);
+                // --- CLAVE DEL MOVIMIENTO NATURAL ---
+                // Aquí está el truco: Limitamos el ángulo MÁXIMO por paso.
+                // En lugar de girar todo lo necesario (angleDegrees), giramos solo un poquito ('smoothness').
+                // Al repetirse esto frame a frame, se crea la animación de acercamiento.
 
-                if (Mathf.Abs(angleDegrees) < 0.001f) continue;
+                if (Mathf.Abs(angleDegrees) > smoothness)
+                {
+                    // Si el ángulo es positivo o negativo, aplicamos solo el paso máximo en esa dirección
+                    angleDegrees = Mathf.Sign(angleDegrees) * smoothness;
+                }
 
-                // 2. Aplicar rotación
+                // Aplicamos la rotación limitada
                 currentBone.Rotate(rotationAxis, angleDegrees, Space.World);
 
-                // --- NUEVO: APLICAR CONSTRAINTS (Límites Angulares) ---
-                // Esto impide giros antinaturales que causan colisiones raras
-                if (j > 0) // No limitamos la base, solo codos/muñecas
+                // --- CONSTRAINTS ---
+                if (j > 0)
                 {
-                    Transform parentBone = bones[j - 1]; // O el padre en la jerarquía
-                    // Calculamos el ángulo local respecto al padre
+                    Transform parentBone = bones[j - 1];
                     Quaternion localRot = Quaternion.Inverse(parentBone.rotation) * currentBone.rotation;
 
-                    // Si el ángulo supera el límite, lo corregimos
                     if (Quaternion.Angle(Quaternion.identity, localRot) > angleLimit)
                     {
-                        // Buscamos la rotación válida más cercana
                         currentBone.rotation = parentBone.rotation * Quaternion.RotateTowards(Quaternion.identity, localRot, angleLimit);
                     }
                 }
             }
 
+            // Comprobación de salida
             currentDistance = Vector3.Distance(endEffector.position, target.position);
             if (currentDistance <= tolerance) break;
         }

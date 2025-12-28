@@ -2024,6 +2024,7 @@ MonoBehaviour:
   target: {fileID: 231149024}
   tolerance: 0.1
   maxIterations: 20
+  smoothness: 0.01
   angleLimit: 61.3
   iterationsUsed: 0
   currentDistance: 0
