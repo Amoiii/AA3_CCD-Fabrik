@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 public class CCD : MonoBehaviour
 {
-    [Header("Configuración del Brazo")]
+    [Header("Configuración")]
     public List<Transform> bones;
     public Transform endEffector;
     public Transform target;
@@ -11,51 +11,37 @@ public class CCD : MonoBehaviour
     [Header("Parámetros")]
     public float tolerance = 0.01f;
     public int maxIterations = 10;
-    [Range(0.01f, 5f)]
-    public float smoothness = 0.5f;
-    [Range(0, 180)]
-    public float angleLimit = 90f;
+    [Range(0.01f, 5f)] public float smoothness = 0.5f;
+    [Range(0, 180)] public float angleLimit = 90f;
 
     [Header("Debug")]
     public int iterationsUsed;
     public float currentDistance;
 
-    // --- NUEVO: Para guardar la postura inicial ---
     private List<Quaternion> initialRotations = new List<Quaternion>();
     private bool initialized = false;
 
     void Awake()
     {
-        // Guardamos la postura "T-Pose" del brazo al arrancar
-        foreach (Transform bone in bones)
-        {
-            initialRotations.Add(bone.rotation);
-        }
+        foreach (Transform bone in bones) initialRotations.Add(bone.rotation);
         initialized = true;
     }
 
     void OnEnable()
     {
-        // ESTO ES LO QUE PIDES:
-        // Cada vez que se active este objeto (tecla 1), el brazo vuelve a su sitio.
         if (initialized)
-        {
-            for (int i = 0; i < bones.Count; i++)
-            {
-                bones[i].rotation = initialRotations[i];
-            }
-        }
+            for (int i = 0; i < bones.Count; i++) bones[i].rotation = initialRotations[i];
     }
 
     void LateUpdate()
     {
         if (target == null || endEffector == null) return;
 
-        currentDistance = Vector3.Distance(endEffector.position, target.position);
+        // Usamos Mates.Distance
+        currentDistance = Mates.Distance((Vec3)endEffector.position, (Vec3)target.position);
         iterationsUsed = 0;
 
         if (currentDistance <= tolerance) return;
-
         SolveCCD();
     }
 
@@ -67,22 +53,33 @@ public class CCD : MonoBehaviour
             for (int j = bones.Count - 1; j >= 0; j--)
             {
                 Transform currentBone = bones[j];
-                Vector3 toEnd = (endEffector.position - currentBone.position).normalized;
-                Vector3 toTarget = (target.position - currentBone.position).normalized;
 
-                if (toEnd == Vector3.zero || toTarget == Vector3.zero) continue;
+                // Convertimos a nuestros vectores Vec3
+                Vec3 bonePos = currentBone.position;
+                Vec3 endPos = endEffector.position;
+                Vec3 targetPos = target.position;
 
-                Vector3 rotationAxis = Vector3.Cross(toEnd, toTarget).normalized;
-                if (rotationAxis.sqrMagnitude < 0.001f) continue;
+                // Cálculo de vectores dirección propios
+                Vec3 toEnd = (endPos - bonePos).Normalized();
+                Vec3 toTarget = (targetPos - bonePos).Normalized();
 
-                float dotProduct = Mathf.Clamp(Vector3.Dot(toEnd, toTarget), -1f, 1f);
-                float angleDegrees = Mathf.Acos(dotProduct) * Mathf.Rad2Deg;
+                // Usamos Mates.Cross y Mates.Dot
+                Vec3 rotationAxis = Mates.Cross(toEnd, toTarget).Normalized();
+                if (rotationAxis.Magnitude() < 0.001f) continue;
 
-                if (Mathf.Abs(angleDegrees) > smoothness)
-                    angleDegrees = Mathf.Sign(angleDegrees) * smoothness;
+                float dotProduct = Mates.Clamp(Mates.Dot(toEnd, toTarget), -1f, 1f);
+                float angleDegrees = Mates.Acos(dotProduct) * Mates.Rad2Deg;
 
-                currentBone.Rotate(rotationAxis, angleDegrees, Space.World);
+                if (Mates.Abs(angleDegrees) > smoothness)
+                    angleDegrees = Mates.Sign(angleDegrees) * smoothness;
 
+                // Aplicamos la rotación. 
+                // Nota: Convertimos nuestro axis a Unity para usar Transform.Rotate
+                // Reimplementar transform.Rotate requeriría matrices 4x4, lo cual suele
+                // estar fuera del alcance de una práctica de IK básica.
+                currentBone.Rotate(rotationAxis.ToUnity(), angleDegrees, Space.World);
+
+                // Constraints (Mantenemos Quaternion de Unity para las restricciones locales complejas)
                 if (j > 0)
                 {
                     Transform parentBone = bones[j - 1];
@@ -91,7 +88,7 @@ public class CCD : MonoBehaviour
                         currentBone.rotation = parentBone.rotation * Quaternion.RotateTowards(Quaternion.identity, localRot, angleLimit);
                 }
             }
-            if (Vector3.Distance(endEffector.position, target.position) <= tolerance) break;
+            if (Mates.Distance((Vec3)endEffector.position, (Vec3)target.position) <= tolerance) break;
         }
     }
 }
