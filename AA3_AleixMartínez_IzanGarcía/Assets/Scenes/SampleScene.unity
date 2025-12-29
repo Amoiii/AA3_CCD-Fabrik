@@ -310,6 +310,7 @@ GameObject:
   - component: {fileID: 231149022}
   - component: {fileID: 231149021}
   - component: {fileID: 231149025}
+  - component: {fileID: 231149026}
   m_Layer: 0
   m_Name: TargetCCD
   m_TagString: Untagged
@@ -401,7 +402,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 2.12, y: 1.19, z: -0.14}
-  m_LocalScale: {x: 0.50502, y: 0.50502, z: 0.50502}
+  m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1619265520}
@@ -418,6 +419,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3374f982fd0a5844c8b4fe777df8415b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  mOffset: {x: 0, y: 0, z: 0}
+  mZCoord: 0
+--- !u!114 &231149026
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 231149020}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd02b5e7a3809a945b7491e59ee63cc9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  velocidad: 5
 --- !u!1 &251650278
 GameObject:
   m_ObjectHideFlags: 0
@@ -2834,6 +2850,7 @@ GameObject:
   - component: {fileID: 1868353973}
   - component: {fileID: 1868353977}
   - component: {fileID: 1868353976}
+  - component: {fileID: 1868353978}
   m_Layer: 0
   m_Name: TargeFABRIK
   m_TagString: Player
@@ -2851,7 +2868,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 2.06, y: 1.235, z: 0.4}
-  m_LocalScale: {x: 0.50502, y: 0.50502, z: 0.50502}
+  m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1495256658}
@@ -2969,6 +2986,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3374f982fd0a5844c8b4fe777df8415b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  mOffset: {x: 0, y: 0, z: 0}
+  mZCoord: 0
+--- !u!114 &1868353978
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1868353971}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd02b5e7a3809a945b7491e59ee63cc9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  velocidad: 5
 --- !u!1001 &1910296611
 PrefabInstance:
   m_ObjectHideFlags: 0
