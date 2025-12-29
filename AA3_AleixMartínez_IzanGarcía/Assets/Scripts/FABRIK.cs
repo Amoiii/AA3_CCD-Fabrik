@@ -3,161 +3,176 @@ using System.Collections.Generic;
 
 public class FABRIK : MonoBehaviour
 {
-    [Header("Configuración del Brazo")]
-    public List<Transform> joints;
-    public Transform endEffector;
-    public Transform target;
+    [Header("Configuración")]
+    public List<Transform> joints; // Los huesos que vemos
+    public Transform endEffector;  // La punta final (hija del último hueso)
+    public Transform target;       // La bola azul
 
-    [Header("Ajustes de Suavidad")]
-    [Range(0, 1)]
-    public float smoothing = 0.5f; // 0 = Rápido/Robótico, 1 = Muy Lento/Fluido
-    public float tolerance = 0.05f;
+    [Header("Suavizado (Smooth)")]
+    [Tooltip("Velocidad de movimiento. 5 = Lento y pesado. 20 = Rápido.")]
+    [Range(1f, 50f)]
+    public float speed = 10f;
+
+    [Header("Parámetros del Algoritmo")]
+    public float tolerance = 0.01f;
     public int maxIterations = 10;
 
-    [Header("Debug Info")]
+    [Header("Datos UI (No tocar)")]
     public int iterationsUsed;
     public float currentDistance;
 
-    // Datos internos
+    // --- VARIABLES INTERNAS ---
     private float[] boneLengths;
-    private Vector3[] positions; // Posiciones virtuales (donde DEBERÍA estar)
-    private Vector3 startPosition;
+    private Vector3[] virtualPositions; // Aquí vive el "Esqueleto Fantasma"
     private float totalArmLength;
 
-    void Start()
-    {
-        // Validación
-        if (joints.Count == 0 || endEffector == null || target == null)
-        {
-            Debug.LogError("¡Faltan asignar cosas en el inspector!");
-            return;
-        }
+    // Para reiniciar
+    private List<Vector3> initialLocalPositions = new List<Vector3>();
+    private List<Quaternion> initialLocalRotations = new List<Quaternion>();
+    private bool initialized = false;
 
-        // Inicializar arrays
-        int totalNodes = joints.Count + 1;
-        positions = new Vector3[totalNodes];
+    void Awake()
+    {
+        // 1. Guardar postura inicial (Local) para el reset
+        foreach (Transform j in joints)
+        {
+            initialLocalPositions.Add(j.localPosition);
+            initialLocalRotations.Add(j.localRotation);
+        }
+        initialized = true;
+
+        // 2. Inicializar el sistema virtual
+        int totalNodes = joints.Count + 1; // Joints + EndEffector
+        virtualPositions = new Vector3[totalNodes];
         boneLengths = new float[totalNodes - 1];
 
-        startPosition = joints[0].position;
-        totalArmLength = 0;
-
-        // Calcular longitudes y longitud total del brazo
+        // 3. Calcular longitudes y llenar posiciones iniciales
         for (int i = 0; i < joints.Count; i++)
         {
-            // Usamos las posiciones iniciales para leer el largo de los huesos
             Vector3 startNode = joints[i].position;
             Vector3 endNode = (i == joints.Count - 1) ? endEffector.position : joints[i + 1].position;
 
             boneLengths[i] = Vector3.Distance(startNode, endNode);
             totalArmLength += boneLengths[i];
 
-            // Inicializar las posiciones virtuales con las reales
-            positions[i] = startNode;
+            virtualPositions[i] = startNode;
         }
-        positions[joints.Count] = endEffector.position;
+        virtualPositions[joints.Count] = endEffector.position;
+    }
+
+    void OnEnable()
+    {
+        // RESETEAR al activar (Tecla 2)
+        if (initialized)
+        {
+            for (int i = 0; i < joints.Count; i++)
+            {
+                joints[i].localPosition = initialLocalPositions[i];
+                joints[i].localRotation = initialLocalRotations[i];
+                // Importante: El fantasma también se resetea al sitio real
+                virtualPositions[i] = joints[i].position;
+            }
+            // Resetear endEffector
+            endEffector.localPosition = new Vector3(0, endEffector.localPosition.y, 0);
+            virtualPositions[joints.Count] = endEffector.position;
+        }
     }
 
     void LateUpdate()
     {
         if (target == null || endEffector == null) return;
 
-        // 1. Decidir la posición ideal (Matemáticas)
-        SolveFABRIK();
+        // PASO 1: Calcular FABRIK en el "Esqueleto Fantasma"
+        // (Esto es pura matemática instantánea, no se ve)
+        SolveVirtualFABRIK();
 
-        // 2. Mover los objetos visuales hacia esa posición suavemente
-        ApplyVisualsSmoothed();
+        // PASO 2: Mover los objetos reales hacia el Fantasma
+        // (Esto es lo que da el efecto suave)
+        ApplyVisuals();
     }
 
-    void SolveFABRIK()
+    void SolveVirtualFABRIK()
     {
-        // Actualizar la base virtual por si el Dron se ha movido
-        // (Pero NO reseteamos todo el array para mantener coherencia temporal)
-        startPosition = joints[0].position;
+        // La base fantasma SIEMPRE está pegada a la base real (por si el dron se mueve)
+        virtualPositions[0] = joints[0].position;
 
-        // Distancia al objetivo
-        float distanceToTarget = Vector3.Distance(startPosition, target.position);
-        currentDistance = Vector3.Distance(positions[positions.Length - 1], target.position);
+        // Distancias para la UI
+        float distToBase = Vector3.Distance(virtualPositions[0], target.position);
+        currentDistance = Vector3.Distance(virtualPositions[virtualPositions.Length - 1], target.position);
 
-        // CASO 1: EL OBJETIVO ESTÁ FUERA DE ALCANCE (Aquí se quedaba pillado antes)
-        if (distanceToTarget > totalArmLength)
+        // --- A. INALCANZABLE (Estirar recto) ---
+        if (distToBase > totalArmLength)
         {
-            // Simplemente estiramos el brazo en línea recta hacia el objetivo
-            // No hace falta iterar (esto ahorra CPU y evita vibraciones)
-            Vector3 direction = (target.position - startPosition).normalized;
-
-            positions[0] = startPosition;
+            Vector3 direction = (target.position - virtualPositions[0]).normalized;
             for (int i = 0; i < boneLengths.Length; i++)
             {
-                positions[i + 1] = positions[i] + direction * boneLengths[i];
+                virtualPositions[i + 1] = virtualPositions[i] + direction * boneLengths[i];
             }
-            iterationsUsed = 0; // No hemos iterado
+            iterationsUsed = 0;
         }
-        // CASO 2: EL OBJETIVO ESTÁ CERCA (ALCANCE)
+        // --- B. ALCANZABLE (Iterar) ---
         else
         {
-            // Copiamos la base actual para empezar a calcular
-            positions[0] = startPosition;
-
-            // Bucle iterativo (Solo si no hemos llegado ya)
-            // Si la distancia visual ya es buena, no calculamos para evitar jitter
+            // Solo calculamos si el objetivo se ha movido (ahorra vibraciones)
             if (currentDistance > tolerance)
             {
+                iterationsUsed = 0;
                 for (int iter = 0; iter < maxIterations; iter++)
                 {
                     iterationsUsed++;
 
-                    // --- FORWARD (Hacia el target) ---
-                    positions[positions.Length - 1] = target.position;
-                    for (int i = positions.Length - 2; i >= 0; i--)
+                    // Forward (Hacia Target)
+                    virtualPositions[virtualPositions.Length - 1] = target.position;
+                    for (int i = virtualPositions.Length - 2; i >= 0; i--)
                     {
-                        Vector3 dir = (positions[i] - positions[i + 1]).normalized;
-                        positions[i] = positions[i + 1] + dir * boneLengths[i];
+                        Vector3 dir = (virtualPositions[i] - virtualPositions[i + 1]).normalized;
+                        virtualPositions[i] = virtualPositions[i + 1] + dir * boneLengths[i];
                     }
 
-                    // --- BACKWARD (Hacia la base) ---
-                    positions[0] = startPosition;
-                    for (int i = 0; i < positions.Length - 1; i++)
+                    // Backward (Hacia Base)
+                    virtualPositions[0] = joints[0].position; // Fijar base
+                    for (int i = 0; i < virtualPositions.Length - 1; i++)
                     {
-                        Vector3 dir = (positions[i + 1] - positions[i]).normalized;
-                        positions[i + 1] = positions[i] + dir * boneLengths[i];
+                        Vector3 dir = (virtualPositions[i + 1] - virtualPositions[i]).normalized;
+                        virtualPositions[i + 1] = virtualPositions[i] + dir * boneLengths[i];
                     }
 
-                    // Salir si ya estamos muy cerca
-                    if (Vector3.Distance(positions[positions.Length - 1], target.position) < tolerance)
+                    // Comprobar salida
+                    if (Vector3.Distance(virtualPositions[virtualPositions.Length - 1], target.position) < tolerance)
                         break;
                 }
             }
         }
+        // Actualizar distancia final UI
+        currentDistance = Vector3.Distance(virtualPositions[virtualPositions.Length - 1], target.position);
     }
 
-    void ApplyVisualsSmoothed()
+    void ApplyVisuals()
     {
-        // Factor de suavizado (Lerp)
-        // Si smoothing es 0, t=1 (Instantáneo). Si smoothing es 0.9, t=0.1 (Lento).
-        float t = 1.0f - smoothing;
+        float step = speed * Time.deltaTime;
 
-        // 1. Mover articulaciones
+        // 1. MOVER POSICIONES (Suavemente hacia el fantasma)
         for (int i = 0; i < joints.Count; i++)
         {
-            // Interpolamos la posición actual hacia la calculada por FABRIK
-            joints[i].position = Vector3.Lerp(joints[i].position, positions[i], t);
+            joints[i].position = Vector3.MoveTowards(joints[i].position, virtualPositions[i], step);
         }
-        // Mover el efector final
-        endEffector.position = Vector3.Lerp(endEffector.position, positions[positions.Length - 1], t);
+        // Mover también el endEffector visual
+        endEffector.position = Vector3.MoveTowards(endEffector.position, virtualPositions[virtualPositions.Length - 1], step);
 
-        // 2. Rotar huesos (LookAt suave)
+        // 2. CORREGIR ROTACIONES (El truco anti-desmontaje)
+        // Cada hueso mira obligatoriamente al siguiente hueso VISUAL
         for (int i = 0; i < joints.Count; i++)
         {
-            Vector3 targetPos = (i < joints.Count - 1) ? joints[i + 1].position : endEffector.position;
-            Vector3 direction = targetPos - joints[i].position;
+            // El objetivo es el siguiente hueso, o el endEffector si soy el último
+            Transform targetTransform = (i < joints.Count - 1) ? joints[i + 1] : endEffector;
 
-            if (direction.sqrMagnitude > 0.001f) // Evitar rotar si están pegados
+            Vector3 direction = targetTransform.position - joints[i].position;
+
+            if (direction.sqrMagnitude > 0.001f)
             {
-                // Calculamos la rotación ideal
-                Quaternion targetRotation = Quaternion.FromToRotation(Vector3.up, direction); // Asumiendo hueso en eje Y
-
-                // Interpolamos la rotación (Slerp)
-                joints[i].rotation = Quaternion.Slerp(joints[i].rotation, targetRotation, t);
+                // NOTA: Si tus cilindros se giran mal, cambia Vector3.up por Vector3.right o Vector3.forward
+                // Quaternion.FromToRotation(EJE_DE_TU_CILINDRO, DIRECCION)
+                joints[i].rotation = Quaternion.FromToRotation(Vector3.up, direction);
             }
         }
     }
