@@ -2,30 +2,35 @@ using UnityEngine;
 
 public class DetectorColision : MonoBehaviour
 {
-    public enum Tipo { Laser, Boton }
+    public enum Tipo { Obstaculo, Objetivo } // Obstaculo = Laser/Pared, Objetivo = Boton/Nucleo
 
     [Header("CONFIGURACIÓN")]
-    // ¡¡¡IMPORTANTE: CAMBIA ESTO A 'BOTON' EN LAS ESFERAS!!!
     public Tipo tipoObjeto;
 
-    public Nivel2_Gameplay manager;
+    [Header("Arrastra el Manager de TU nivel (Uno de los dos)")]
+    public Nivel1_Gameplay managerNivel1; // Arrastra aquí si es el Nivel CCD
+    public Nivel2_Gameplay managerNivel2; // Arrastra aquí si es el Nivel FABRIK
 
     void OnTriggerEnter(Collider other)
     {
-        // Solo reaccionamos si nos toca el jugador (Brazo o Bola)
-        if (other.CompareTag("Player") || other.name == "Target")
+        // Detectar si nos toca el Jugador (Brazo o Bola)
+        // IMPORTANTE: La punta del brazo CCD también debe tener el Tag "Player"
+        if (other.CompareTag("Player") || other.name == "Target" || other.name == "EndEffector")
         {
-            // CASO A: SOY UN LÁSER -> MATAR
-            if (tipoObjeto == Tipo.Laser)
+            // --- CASO 1: OBSTÁCULO (Reiniciar) ---
+            if (tipoObjeto == Tipo.Obstaculo)
             {
-                Debug.Log("Láser tocado. Muerte.");
-                manager.TocarLaser();
+                if (managerNivel1 != null) managerNivel1.Perder();
+                if (managerNivel2 != null) managerNivel2.TocarLaser();
             }
-            // CASO B: SOY UN BOTÓN -> SUMAR PUNTO
-            else if (tipoObjeto == Tipo.Boton)
+            // --- CASO 2: OBJETIVO (Sumar Punto) ---
+            else if (tipoObjeto == Tipo.Objetivo)
             {
-                Debug.Log("Botón tocado. Punto.");
-                manager.TocarBoton(this.gameObject);
+                // Desactivamos el objeto para que parezca "recogido"
+                this.gameObject.SetActive(false);
+
+                if (managerNivel1 != null) managerNivel1.RecogerNucleo();
+                if (managerNivel2 != null) managerNivel2.TocarBoton(this.gameObject);
             }
         }
     }
