@@ -8,146 +8,140 @@ public class FABRIK : MonoBehaviour
     public Transform endEffector;
     public Transform target;
 
-    [Header("Suavizado")]
-    [Range(1f, 50f)] public float speed = 20f;
-
-    [Header("Parámetros")]
+    [Range(0, 1)]
+    public float smoothing = 0.5f;
     public float tolerance = 0.01f;
-    public int maxIterations = 20;
+    public int maxIterations = 10;
 
-    [Header("Datos UI")]
     public int iterationsUsed;
     public float currentDistance;
 
-    // USAMOS NUESTRO PROPIO VECTOR "Vec3"
     private float[] boneLengths;
-    private Vec3[] virtualPositions; // <-- Aquí está el cambio clave
+    private Vector3[] positions;
+    private Vector3 startPosition;
     private float totalArmLength;
 
-    // Variables para reset
-    private List<Vector3> initialLocalPositions = new List<Vector3>();
-    private List<Quaternion> initialLocalRotations = new List<Quaternion>();
+    // --- NUEVO: Guardar postura inicial ---
+    private List<Vector3> initialJointPositions = new List<Vector3>();
+    private List<Quaternion> initialJointRotations = new List<Quaternion>();
     private bool initialized = false;
 
     void Awake()
     {
+        // Guardar cómo estaba el brazo al principio
         foreach (Transform j in joints)
         {
-            initialLocalPositions.Add(j.localPosition);
-            initialLocalRotations.Add(j.localRotation);
+            initialJointPositions.Add(j.position);
+            initialJointRotations.Add(j.rotation);
         }
         initialized = true;
-
-        int totalNodes = joints.Count + 1;
-        virtualPositions = new Vec3[totalNodes]; // Array de MIs vectores
-        boneLengths = new float[totalNodes - 1];
-
-        for (int i = 0; i < joints.Count; i++)
-        {
-            // Conversión implícita de Unity Vector3 a Vec3
-            Vec3 startNode = joints[i].position;
-            Vec3 endNode = (i == joints.Count - 1) ? (Vec3)endEffector.position : (Vec3)joints[i + 1].position;
-
-            // Usamos NUESTRA función de distancia
-            boneLengths[i] = Mates.Distance(startNode, endNode);
-            totalArmLength += boneLengths[i];
-            virtualPositions[i] = startNode;
-        }
-        virtualPositions[joints.Count] = endEffector.position;
     }
 
     void OnEnable()
     {
-        if (initialized)
+        // RESETEAR AL ACTIVAR (Tecla 2)
+        if (initialized && joints.Count > 0)
         {
             for (int i = 0; i < joints.Count; i++)
             {
-                joints[i].localPosition = initialLocalPositions[i];
-                joints[i].localRotation = initialLocalRotations[i];
-                virtualPositions[i] = joints[i].position;
+                joints[i].position = initialJointPositions[i];
+                joints[i].rotation = initialJointRotations[i];
+                // Importante: Resetear también el array matemático
+                if (positions != null && positions.Length > i) positions[i] = initialJointPositions[i];
             }
-            endEffector.localPosition = new Vector3(0, endEffector.localPosition.y, 0);
-            virtualPositions[joints.Count] = endEffector.position;
+            if (endEffector != null && positions != null)
+                positions[positions.Length - 1] = endEffector.position;
         }
+    }
+
+    void Start()
+    {
+        if (joints.Count == 0 || endEffector == null || target == null) return;
+
+        int totalNodes = joints.Count + 1;
+        positions = new Vector3[totalNodes];
+        boneLengths = new float[totalNodes - 1];
+        startPosition = joints[0].position;
+        totalArmLength = 0;
+
+        for (int i = 0; i < joints.Count; i++)
+        {
+            Vector3 startNode = joints[i].position;
+            Vector3 endNode = (i == joints.Count - 1) ? endEffector.position : joints[i + 1].position;
+            boneLengths[i] = Vector3.Distance(startNode, endNode);
+            totalArmLength += boneLengths[i];
+            positions[i] = startNode;
+        }
+        positions[joints.Count] = endEffector.position;
     }
 
     void LateUpdate()
     {
         if (target == null || endEffector == null) return;
-        SolveVirtualFABRIK();
-        ApplyVisuals();
+
+        SolveFABRIK();
+        ApplyVisualsSmoothed();
     }
 
-    void SolveVirtualFABRIK()
+    void SolveFABRIK()
     {
-        virtualPositions[0] = joints[0].position;
-        // Mates.Distance en lugar de Vector3.Distance
-        float distToBase = Mates.Distance(virtualPositions[0], target.position);
-        currentDistance = Mates.Distance(virtualPositions[virtualPositions.Length - 1], target.position);
+        startPosition = joints[0].position;
+        float distanceToTarget = Vector3.Distance(startPosition, target.position);
+        currentDistance = Vector3.Distance(positions[positions.Length - 1], target.position);
 
-        if (distToBase > totalArmLength)
+        if (distanceToTarget > totalArmLength)
         {
-            // Cálculo manual de dirección y normalización con nuestra librería
-            Vec3 direction = (Vec3)target.position - virtualPositions[0];
-            direction = direction.Normalized();
-
+            Vector3 direction = (target.position - startPosition).normalized;
+            positions[0] = startPosition;
             for (int i = 0; i < boneLengths.Length; i++)
-                virtualPositions[i + 1] = virtualPositions[i] + direction * boneLengths[i];
+                positions[i + 1] = positions[i] + direction * boneLengths[i];
             iterationsUsed = 0;
         }
         else
         {
+            positions[0] = startPosition;
             if (currentDistance > tolerance)
             {
-                iterationsUsed = 0;
                 for (int iter = 0; iter < maxIterations; iter++)
                 {
                     iterationsUsed++;
                     // Forward
-                    virtualPositions[virtualPositions.Length - 1] = target.position;
-                    for (int i = virtualPositions.Length - 2; i >= 0; i--)
+                    positions[positions.Length - 1] = target.position;
+                    for (int i = positions.Length - 2; i >= 0; i--)
                     {
-                        Vec3 dir = virtualPositions[i] - virtualPositions[i + 1];
-                        dir = dir.Normalized(); // Normalización propia
-                        virtualPositions[i] = virtualPositions[i + 1] + dir * boneLengths[i];
+                        Vector3 dir = (positions[i] - positions[i + 1]).normalized;
+                        positions[i] = positions[i + 1] + dir * boneLengths[i];
                     }
                     // Backward
-                    virtualPositions[0] = joints[0].position;
-                    for (int i = 0; i < virtualPositions.Length - 1; i++)
+                    positions[0] = startPosition;
+                    for (int i = 0; i < positions.Length - 1; i++)
                     {
-                        Vec3 dir = virtualPositions[i + 1] - virtualPositions[i];
-                        dir = dir.Normalized();
-                        virtualPositions[i + 1] = virtualPositions[i] + dir * boneLengths[i];
+                        Vector3 dir = (positions[i + 1] - positions[i]).normalized;
+                        positions[i + 1] = positions[i] + dir * boneLengths[i];
                     }
-                    if (Mates.Distance(virtualPositions[virtualPositions.Length - 1], target.position) < tolerance) break;
+                    if (Vector3.Distance(positions[positions.Length - 1], target.position) < tolerance) break;
                 }
             }
         }
-        currentDistance = Mates.Distance(virtualPositions[virtualPositions.Length - 1], target.position);
     }
 
-    void ApplyVisuals()
+    void ApplyVisualsSmoothed()
     {
-        float step = speed * Time.deltaTime;
+        float t = 1.0f - smoothing;
+        for (int i = 0; i < joints.Count; i++)
+            joints[i].position = Vector3.Lerp(joints[i].position, positions[i], t);
+
+        endEffector.position = Vector3.Lerp(endEffector.position, positions[positions.Length - 1], t);
+
         for (int i = 0; i < joints.Count; i++)
         {
-            // Convertimos de Vec3 a Unity Vector3 solo para pintar en pantalla
-            Vec3 nuevaPos = Mates.MoveTowards(joints[i].position, virtualPositions[i], step);
-            joints[i].position = nuevaPos.ToUnity();
-        }
-
-        Vec3 endPos = Mates.MoveTowards(endEffector.position, virtualPositions[virtualPositions.Length - 1], step);
-        endEffector.position = endPos.ToUnity();
-
-        // Para las rotaciones mantenemos Quaternion de Unity porque reimplementar Quaterniones
-        // desde cero es extremadamente complejo y propenso a errores graves.
-        // Normalmente se permite usar Quaternion para el resultado visual final.
-        for (int i = 0; i < joints.Count; i++)
-        {
-            Transform targetTransform = (i < joints.Count - 1) ? joints[i + 1] : endEffector;
-            Vector3 direction = targetTransform.position - joints[i].position;
+            Vector3 targetPos = (i < joints.Count - 1) ? joints[i + 1].position : endEffector.position;
+            Vector3 direction = targetPos - joints[i].position;
             if (direction.sqrMagnitude > 0.001f)
-                joints[i].rotation = Quaternion.FromToRotation(Vector3.up, direction);
+            {
+                Quaternion targetRotation = Quaternion.FromToRotation(Vector3.up, direction);
+                joints[i].rotation = Quaternion.Slerp(joints[i].rotation, targetRotation, t);
+            }
         }
     }
 }
