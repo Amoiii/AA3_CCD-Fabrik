@@ -2,27 +2,29 @@ using UnityEngine;
 
 public class DetectorColision : MonoBehaviour
 {
-    public enum TipoObjeto { Laser, Boton, Brazo }
-    public TipoObjeto tipo;
+    public enum Tipo { Laser, Boton }
 
-    // Arrastra aquí el objeto GameManager que tiene el script Nivel2_Gameplay
+    [Header("CONFIGURACIÓN")]
+    // ¡¡¡IMPORTANTE: CAMBIA ESTO A 'BOTON' EN LAS ESFERAS!!!
+    public Tipo tipoObjeto;
+
     public Nivel2_Gameplay manager;
 
     void OnTriggerEnter(Collider other)
     {
-        // Si soy un LÁSER y me toca el BRAZO o el TARGET -> MUERTE
-        if (tipo == TipoObjeto.Laser)
+        // Solo reaccionamos si nos toca el jugador (Brazo o Bola)
+        if (other.CompareTag("Player") || other.name == "Target")
         {
-            if (other.CompareTag("Player")) // Asegúrate de poner el tag "Player" al Brazo y Target
+            // CASO A: SOY UN LÁSER -> MATAR
+            if (tipoObjeto == Tipo.Laser)
             {
+                Debug.Log("Láser tocado. Muerte.");
                 manager.TocarLaser();
             }
-        }
-        // Si soy un BOTÓN y me toca el TARGET (La bola azul) -> WIN
-        else if (tipo == TipoObjeto.Boton)
-        {
-            if (other.name == "TargetFabrik" || other.CompareTag("Player")) // O el nombre de tu bola azul
+            // CASO B: SOY UN BOTÓN -> SUMAR PUNTO
+            else if (tipoObjeto == Tipo.Boton)
             {
+                Debug.Log("Botón tocado. Punto.");
                 manager.TocarBoton(this.gameObject);
             }
         }
