@@ -5,9 +5,9 @@ using UnityEngine.UI;
 public class UIManager : MonoBehaviour
 {
     [Header("--- NIVEL 1: CCD ---")]
-    public GameObject objetoBrazoCCD; // El objeto padre del brazo (Joint0)
-    public GameObject grupoUICCD;     // La carpeta "GRUPO_UI_CCD" del Canvas
-    public CCD scriptCCD;      // El script del brazo
+    public GameObject objetoBrazoCCD; 
+    public GameObject grupoUICCD;    
+    public CCD scriptCCD;      
 
     [Header("Controles CCD")]
     public Text textoInfoCCD;
@@ -15,9 +15,9 @@ public class UIManager : MonoBehaviour
     public Slider sliderTolerancia;
 
     [Header("--- NIVEL 2: FABRIK ---")]
-    public GameObject objetoBrazoFABRIK; // El objeto padre del brazo (Joint0)
-    public GameObject grupoUIFABRIK;     // La carpeta "GRUPO_UI_FABRIK" del Canvas
-    public FABRIK scriptFABRIK;    // El script del brazo
+    public GameObject objetoBrazoFABRIK; 
+    public GameObject grupoUIFABRIK;    
+    public FABRIK scriptFABRIK;    
 
     [Header("Controles FABRIK")]
     public Text textoInfoFABRIK;
@@ -38,7 +38,7 @@ public class UIManager : MonoBehaviour
             sliderTolerancia.value = scriptCCD.tolerance;
         }
 
-        // --- ESTADO POR DEFECTO: CCD ACTIVADO ---
+       
         ActivarModoCCD();
     }
 
@@ -55,9 +55,9 @@ public class UIManager : MonoBehaviour
                 ActivarModoFABRIK();
             }
         }
-        // --- ACTUALIZAR DATOS EN PANTALLA ---
+       
 
-        // Solo actualizamos la UI del que esté activo para ahorrar recursos
+      
         if (objetoBrazoCCD.activeSelf && scriptCCD != null)
         {
             // Lógica CCD
@@ -85,7 +85,7 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    // --- FUNCIONES PARA CAMBIAR DE MODO ---
+  
 
     void ActivarModoCCD()
     {

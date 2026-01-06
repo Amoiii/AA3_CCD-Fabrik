@@ -5,19 +5,19 @@ using UnityEngine.SceneManagement;
 public class Nivel1_Gameplay : MonoBehaviour
 {
     [Header("Referencias")]
-    public CCD brazoCCD;       // Tu script CCD
-    public Transform target;   // La bola verde que mueves
-    public Transform inicio;   // Un objeto vacío donde empieza la bola
+    public CCD brazoCCD;       
+    public Transform target;   
+    public Transform inicio;  
 
     [Header("UI")]
-    public Text textoPantalla; // Arrastra el Texto_CCD del Canvas
+    public Text textoPantalla;
 
     private int nucleosRobados = 0;
     private int totalNucleos = 0;
 
     void Start()
     {
-        // Contamos cuantos objetivos hay en la escena al empezar
+       
         totalNucleos = GameObject.FindGameObjectsWithTag("Boton").Length;
         ActualizarTexto();
     }
@@ -31,14 +31,14 @@ public class Nivel1_Gameplay : MonoBehaviour
         if (nucleosRobados >= totalNucleos)
         {
             textoPantalla.text = "<color=green>¡DATOS ROBADOS! (NIVEL 1 COMPLETADO)</color>";
-            // Aquí podrías cargar el siguiente nivel automáticamente
+            
         }
     }
 
     public void Perder()
     {
-        // Si quieres poner obstáculos en el nivel 1 también
-        Debug.Log("¡Detectado! Reiniciando...");
+       
+        
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 

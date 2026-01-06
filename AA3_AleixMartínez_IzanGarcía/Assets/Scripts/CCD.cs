@@ -37,7 +37,7 @@ public class CCD : MonoBehaviour
     {
         if (target == null || endEffector == null) return;
 
-        // Usamos Mates.Distance
+        
         currentDistance = Mates.Distance((Vec3)endEffector.position, (Vec3)target.position);
         iterationsUsed = 0;
 
@@ -74,12 +74,10 @@ public class CCD : MonoBehaviour
                     angleDegrees = Mates.Sign(angleDegrees) * smoothness;
 
                 // Aplicamos la rotación. 
-                // Nota: Convertimos nuestro axis a Unity para usar Transform.Rotate
-                // Reimplementar transform.Rotate requeriría matrices 4x4, lo cual suele
-                // estar fuera del alcance de una práctica de IK básica.
+                
                 currentBone.Rotate(rotationAxis.ToUnity(), angleDegrees, Space.World);
 
-                // Constraints (Mantenemos Quaternion de Unity para las restricciones locales complejas)
+                // Constraints
                 if (j > 0)
                 {
                     Transform parentBone = bones[j - 1];

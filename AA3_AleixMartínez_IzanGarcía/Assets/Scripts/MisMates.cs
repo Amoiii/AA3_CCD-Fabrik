@@ -1,8 +1,5 @@
-using System; // Usamos System para matemáticas básicas (Raíz cuadrada), esto SÍ está permitido.
+using System;
 
-// -------------------------------------------------------------------------
-// MI PROPIA LIBRERÍA DE VECTORES (Para no usar Unity.Vector3)
-// -------------------------------------------------------------------------
 [System.Serializable]
 public struct Vec3
 {
@@ -21,26 +18,26 @@ public struct Vec3
         return new Vec3(v.x, v.y, v.z);
     }
 
-    // Convertir de Mi Vector a Unity (Para poder mover los objetos al final)
+    // Convertir de Mi Vector a Unity
     public UnityEngine.Vector3 ToUnity()
     {
         return new UnityEngine.Vector3(x, y, z);
     }
 
-    // --- OPERACIONES IMPLEMENTADAS A MANO ---
+  
 
     public static Vec3 operator +(Vec3 a, Vec3 b) => new Vec3(a.x + b.x, a.y + b.y, a.z + b.z);
     public static Vec3 operator -(Vec3 a, Vec3 b) => new Vec3(a.x - b.x, a.y - b.y, a.z - b.z);
     public static Vec3 operator *(Vec3 a, float d) => new Vec3(a.x * d, a.y * d, a.z * d);
     public static Vec3 operator /(Vec3 a, float d) => new Vec3(a.x / d, a.y / d, a.z / d);
 
-    // Magnitud (Pitágoras)
+    // Magnitud pitagoras
     public float Magnitude()
     {
         return (float)Math.Sqrt(x * x + y * y + z * z);
     }
 
-    // Normalizar (Hacer que mida 1)
+    // Normalizar 
     public Vec3 Normalized()
     {
         float mag = Magnitude();
@@ -50,9 +47,7 @@ public struct Vec3
     }
 }
 
-// -------------------------------------------------------------------------
-// MI PROPIA LIBRERÍA DE MATEMÁTICAS (Para no usar Unity.Mathf)
-// -------------------------------------------------------------------------
+
 public static class Mates
 {
     public const float PI = 3.14159265359f;
@@ -67,13 +62,13 @@ public static class Mates
         return (float)Math.Sqrt(diffX * diffX + diffY * diffY + diffZ * diffZ);
     }
 
-    // Producto Escalar (Dot Product)
+    // Producto Escalar
     public static float Dot(Vec3 a, Vec3 b)
     {
         return a.x * b.x + a.y * b.y + a.z * b.z;
     }
 
-    // Producto Vectorial (Cross Product)
+    // Producto Vectorial 
     public static Vec3 Cross(Vec3 a, Vec3 b)
     {
         return new Vec3(

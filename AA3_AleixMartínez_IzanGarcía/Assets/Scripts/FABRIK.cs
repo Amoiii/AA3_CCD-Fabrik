@@ -21,14 +21,14 @@ public class FABRIK : MonoBehaviour
     private Vector3 startPosition;
     private float totalArmLength;
 
-    // --- NUEVO: Guardar postura inicial ---
+   
     private List<Vector3> initialJointPositions = new List<Vector3>();
     private List<Quaternion> initialJointRotations = new List<Quaternion>();
     private bool initialized = false;
 
     void Awake()
     {
-        // Guardar cómo estaba el brazo al principio
+       
         foreach (Transform j in joints)
         {
             initialJointPositions.Add(j.position);
@@ -39,14 +39,14 @@ public class FABRIK : MonoBehaviour
 
     void OnEnable()
     {
-        // RESETEAR AL ACTIVAR (Tecla 2)
+        // RESETEAR
         if (initialized && joints.Count > 0)
         {
             for (int i = 0; i < joints.Count; i++)
             {
                 joints[i].position = initialJointPositions[i];
                 joints[i].rotation = initialJointRotations[i];
-                // Importante: Resetear también el array matemático
+                // Resetear también el array matemático
                 if (positions != null && positions.Length > i) positions[i] = initialJointPositions[i];
             }
             if (endEffector != null && positions != null)
