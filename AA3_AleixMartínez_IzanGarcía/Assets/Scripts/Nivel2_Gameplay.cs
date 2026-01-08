@@ -4,8 +4,19 @@ using UnityEngine.SceneManagement;
 
 public class Nivel2_Gameplay : MonoBehaviour
 {
-    public Text textoPantalla;
+  
+    [Header("Configuración Nivel")]
+    public GameObject contenedorLasers; 
+    public int botonesParaGanar = 3;   
+
     private int botonesPulsados = 0;
+
+    void Start()
+    {
+       
+        if (contenedorLasers != null) contenedorLasers.SetActive(true);
+       
+    }
 
    
     public void TocarLaser()
@@ -20,6 +31,25 @@ public class Nivel2_Gameplay : MonoBehaviour
         botonesPulsados++;
         boton.SetActive(false); 
 
- 
+     
+        // COMPROBACIÓN DE VICTORIA
+        if (botonesPulsados >= botonesParaGanar)
+        {
+            DesactivarSeguridad();
+        }
     }
+
+    void DesactivarSeguridad()
+    {
+        // 1. Apagamos los láseres visual y físicamente
+        if (contenedorLasers != null)
+        {
+            contenedorLasers.SetActive(false);
+        }
+
+     
+      
+    }
+
+  
 }
