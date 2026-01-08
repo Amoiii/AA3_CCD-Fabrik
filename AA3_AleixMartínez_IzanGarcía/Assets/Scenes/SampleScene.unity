@@ -5151,7 +5151,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   brazoCCD: {fileID: 2092329069}
-  target: {fileID: 0}
+  target: {fileID: 231149024}
   inicio: {fileID: 0}
   textoPantalla: {fileID: 0}
 --- !u!4 &1719925887
